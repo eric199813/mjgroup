@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>今晚打牌嗎？</title>
+  <title>李媽媽麻將館</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
@@ -195,7 +195,7 @@
       display: block;
       margin-bottom: 5px;
     }
-    .form input {
+    .form input, .form select {
       width: 100%;
       background: #0f172a;
       color: white;
@@ -228,7 +228,7 @@
 <div class="app">
   <div class="topbar">
     <div>
-      <h1>🀄 今晚打牌嗎？</h1>
+      <h1>🀄 李媽媽麻將館</h1>
       <div class="subtitle">大家填有空時間，系統自動找出最容易成局的時段。</div>
     </div>
     <div class="user-box">
@@ -263,11 +263,11 @@
         <form id="availabilityForm" class="form">
           <div>
             <label>開始時間</label>
-            <input type="time" id="startTime" value="19:00" required>
+            <select id="startTime" required></select>
           </div>
           <div>
             <label>結束時間</label>
-            <input type="time" id="endTime" value="23:00" required>
+            <select id="endTime" required></select>
           </div>
           <div class="full">
             <label>備註（選填）</label>
@@ -276,7 +276,7 @@
           <div class="full form-actions">
             <button class="btn btn-primary" type="submit">新增我的時間</button>
           </div>
-          <div class="full small">預設 4 人成局。跨午夜時間（例如 21:00～01:00）也支援。</div>
+          <div class="full small">預設 4 人成局。時間只能選整點或 30 分；跨午夜（例如 21:00～01:00）也支援。</div>
         </form>
       </div>
     </aside>
@@ -319,6 +319,23 @@
   let monthRows = [];
 
   nicknameInput.value = localStorage.getItem("card-night-name") || "";
+
+  // 產生每 30 分鐘一個選項：00:00、00:30 ... 23:30
+  function buildTimeOptions(selectEl, defaultValue) {
+    const options = [];
+    for (let h = 0; h < 24; h++) {
+      for (const m of [0, 30]) {
+        const hh = String(h).padStart(2, "0");
+        const mm = String(m).padStart(2, "0");
+        const value = `${hh}:${mm}`;
+        options.push(`<option value="${value}"${value === defaultValue ? " selected" : ""}>${value}</option>`);
+      }
+    }
+    selectEl.innerHTML = options.join("");
+  }
+
+  buildTimeOptions(document.getElementById("startTime"), "19:00");
+  buildTimeOptions(document.getElementById("endTime"), "23:00");
 
   if (!isConfigured) setupWarning.hidden = false;
 
