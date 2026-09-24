@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>今晚打牌嗎？</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --line: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #22c55e;
+      --accent-2: #16a34a;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --today: #38bdf8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        "Noto Sans TC", sans-serif;
+      background: linear-gradient(180deg, #0f172a 0%, #020617 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    button, input { font: inherit; }
+    .app {
+      width: min(1080px, 100%);
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .topbar {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    h1 { margin: 0; font-size: clamp(26px, 4vw, 40px); }
+    .subtitle { color: var(--muted); margin-top: 6px; }
+    .user-box {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      background: rgba(17,24,39,.9);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px;
+    }
+    .user-box input {
+      width: 140px;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      color: var(--text);
+      padding: 10px 12px;
+      outline: none;
+    }
+    .btn {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .btn-primary { background: var(--accent); color: #052e16; }
+    .btn-primary:hover { background: var(--accent-2); color: white; }
+    .btn-secondary { background: #334155; color: white; }
+    .btn-danger { background: #7f1d1d; color: #fecaca; }
+    .status {
+      margin: 0 0 14px;
+      color: var(--muted);
+      min-height: 24px;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 1.4fr .8fr;
+      gap: 18px;
+    }
+    .card {
+      background: rgba(17,24,39,.96);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0,0,0,.25);
+    }
+    .calendar-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .calendar-head strong { font-size: 20px; }
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+    }
+    .weekday {
+      padding: 12px 6px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      border-bottom: 1px solid var(--line);
+    }
+    .day {
+      min-height: 112px;
+      padding: 9px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      cursor: pointer;
+      background: rgba(15,23,42,.45);
+      transition: .15s ease;
+      position: relative;
+    }
+    .day:nth-child(7n) { border-right: 0; }
+    .day:hover { background: rgba(51,65,85,.5); }
+    .day.outside { opacity: .3; }
+    .day.selected { outline: 2px solid var(--today); outline-offset: -2px; }
+    .day.today .day-num {
+      background: var(--today);
+      color: #082f49;
+    }
+    .day-num {
+      display: inline-flex;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      margin-bottom: 7px;
+    }
+    .count {
+      font-size: 13px;
+      color: #cbd5e1;
+      margin-bottom: 4px;
+    }
+    .formed {
+      color: #86efac;
+      font-weight: 800;
+      font-size: 13px;
+    }
+    .detail {
+      padding: 18px;
+    }
+    .detail h2 { margin-top: 0; margin-bottom: 6px; }
+    .detail-date { color: var(--muted); margin-bottom: 16px; }
+    .best-slot {
+      border: 1px solid #166534;
+      background: rgba(20,83,45,.35);
+      padding: 14px;
+      border-radius: 14px;
+      margin-bottom: 16px;
+    }
+    .best-slot strong { color: #86efac; }
+    .empty {
+      color: var(--muted);
+      background: rgba(15,23,42,.6);
+      padding: 12px;
+      border-radius: 12px;
+    }
+    .entry {
+      background: rgba(31,41,55,.9);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 9px;
+    }
+    .entry-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+    }
+    .entry-name { font-weight: 800; }
+    .entry-time { color: #cbd5e1; margin-top: 5px; }
+    .entry-note { color: var(--muted); font-size: 13px; margin-top: 5px; }
+    .form {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }
+    .form label {
+      font-size: 12px;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 5px;
+    }
+    .form input {
+      width: 100%;
+      background: #0f172a;
+      color: white;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+    }
+    .form .full { grid-column: 1 / -1; }
+    .form-actions { display: flex; gap: 8px; }
+    .small { font-size: 12px; color: var(--muted); }
+    .setup-warning {
+      border: 1px solid #92400e;
+      background: rgba(120,53,15,.25);
+      color: #fde68a;
+      padding: 12px 14px;
+      border-radius: 12px;
+      margin-bottom: 14px;
+    }
+    @media (max-width: 800px) {
+      .app { padding: 12px; }
+      .layout { grid-template-columns: 1fr; }
+      .day { min-height: 82px; padding: 6px; }
+      .count, .formed { font-size: 11px; }
+      .user-box { width: 100%; }
+      .user-box input { flex: 1; width: auto; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div>
+      <h1>🀄 今晚打牌嗎？</h1>
+      <div class="subtitle">大家填有空時間，系統自動找出最容易成局的時段。</div>
+    </div>
+    <div class="user-box">
+      <input id="nickname" placeholder="你的暱稱" maxlength="20">
+      <button class="btn btn-primary" id="saveNameBtn">儲存名字</button>
+    </div>
+  </div>
+
+  <div id="setupWarning" class="setup-warning" hidden>
+    尚未設定 Supabase。請先依 README 建立資料表，並把網址與 anon key 填入 index.html。
+  </div>
+  <div id="status" class="status"></div>
+
+  <div class="layout">
+    <section class="card">
+      <div class="calendar-head">
+        <button class="btn btn-secondary" id="prevBtn">‹</button>
+        <strong id="monthTitle"></strong>
+        <button class="btn btn-secondary" id="nextBtn">›</button>
+      </div>
+      <div class="calendar-grid" id="weekdayRow"></div>
+      <div class="calendar-grid" id="calendar"></div>
+    </section>
+
+    <aside class="card">
+      <div class="detail">
+        <h2>牌局時間</h2>
+        <div id="detailDate" class="detail-date">請先選日期</div>
+        <div id="bestSlot"></div>
+        <div id="entries"></div>
+
+        <form id="availabilityForm" class="form">
+          <div>
+            <label>開始時間</label>
+            <input type="time" id="startTime" value="19:00" required>
+          </div>
+          <div>
+            <label>結束時間</label>
+            <input type="time" id="endTime" value="23:00" required>
+          </div>
+          <div class="full">
+            <label>備註（選填）</label>
+            <input id="note" placeholder="例如：最晚 12 點、要晚點到">
+          </div>
+          <div class="full form-actions">
+            <button class="btn btn-primary" type="submit">新增我的時間</button>
+          </div>
+          <div class="full small">預設 4 人成局。跨午夜時間（例如 21:00～01:00）也支援。</div>
+        </form>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+  // ===== 1. 請把這兩個值換成你自己的 Supabase 專案資料 =====
+  const SUPABASE_URL = "https://qgllvuzqwbdnmjretjmc.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_hcxtj36oytrf-3Ta5VXMuw_HVYoSVYq";
+
+  const REQUIRED_PLAYERS = 4;
+
+  const isConfigured =
+    !SUPABASE_URL.includes("YOUR_") &&
+    !SUPABASE_ANON_KEY.includes("YOUR_");
+
+  const db = isConfigured
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+
+  const nicknameInput = document.getElementById("nickname");
+  const saveNameBtn = document.getElementById("saveNameBtn");
+  const calendarEl = document.getElementById("calendar");
+  const weekdayRow = document.getElementById("weekdayRow");
+  const monthTitle = document.getElementById("monthTitle");
+  const detailDate = document.getElementById("detailDate");
+  const entriesEl = document.getElementById("entries");
+  const bestSlotEl = document.getElementById("bestSlot");
+  const form = document.getElementById("availabilityForm");
+  const statusEl = document.getElementById("status");
+  const setupWarning = document.getElementById("setupWarning");
+
+  const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
+  weekdayRow.innerHTML = weekdays.map(x => `<div class="weekday">${x}</div>`).join("");
+
+  let currentMonth = new Date();
+  currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+  let selectedDate = formatDate(new Date());
+  let monthRows = [];
+
+  nicknameInput.value = localStorage.getItem("card-night-name") || "";
+
+  if (!isConfigured) setupWarning.hidden = false;
+
+  saveNameBtn.addEventListener("click", () => {
+    const name = nicknameInput.value.trim();
+    if (!name) return setStatus("請先輸入暱稱。");
+    localStorage.setItem("card-night-name", name);
+    setStatus(`已記住你的名字：${name}`);
+  });
+
+  document.getElementById("prevBtn").addEventListener("click", () => {
+    currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+    loadMonth();
+  });
+
+  document.getElementById("nextBtn").addEventListener("click", () => {
+    currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+    loadMonth();
+  });
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!db) return setStatus("請先完成 Supabase 設定。");
+
+    const name = nicknameInput.value.trim();
+    const start = document.getElementById("startTime").value;
+    const end = document.getElementById("endTime").value;
+    const note = document.getElementById("note").value.trim();
+
+    if (!name) return setStatus("請先輸入並儲存你的暱稱。");
+    if (!selectedDate) return setStatus("請先選日期。");
+    if (!start || !end) return setStatus("請填開始與結束時間。");
+
+    localStorage.setItem("card-night-name", name);
+    setStatus("儲存中…");
+
+    const { error } = await db.from("availability").insert({
+      name,
+      play_date: selectedDate,
+      start_time: start,
+      end_time: end,
+      note
+    });
+
+    if (error) {
+      console.error(error);
+      return setStatus("新增失敗：" + error.message);
+    }
+
+    document.getElementById("note").value = "";
+    setStatus("已新增可打牌時間。");
+    await loadMonth();
+    await loadSelectedDate();
+  });
+
+  function setStatus(msg) {
+    statusEl.textContent = msg;
+  }
+
+  function formatDate(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+
+  function parseDate(s) {
+    const [y,m,d] = s.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  }
+
+  function prettyDate(s) {
+    const d = parseDate(s);
+    return `${d.getFullYear()} 年 ${d.getMonth()+1} 月 ${d.getDate()} 日 星期${weekdays[d.getDay()]}`;
+  }
+
+  async function loadMonth() {
+    monthTitle.textContent = `${currentMonth.getFullYear()} 年 ${currentMonth.getMonth()+1} 月`;
+
+    if (!db) {
+      monthRows = [];
+      renderCalendar();
+      loadSelectedDate();
+      return;
+    }
+
+    const first = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    const last = new Date(currentMonth.getFullYear(), currentMonth.getMonth()+1, 0);
+
+    const { data, error } = await db
+      .from("availability")
+      .select("*")
+      .gte("play_date", formatDate(first))
+      .lte("play_date", formatDate(last))
+      .order("play_date", { ascending: true });
+
+    if (error) {
+      console.error(error);
+      setStatus("讀取資料失敗：" + error.message);
+      monthRows = [];
+    } else {
+      monthRows = data || [];
+    }
+
+    renderCalendar();
+  }
+
+  function renderCalendar() {
+    calendarEl.innerHTML = "";
+
+    const first = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    const start = new Date(first);
+    start.setDate(first.getDate() - first.getDay());
+
+    const today = formatDate(new Date());
+
+    for (let i = 0; i < 42; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      const ds = formatDate(d);
+      const rows = monthRows.filter(x => x.play_date === ds);
+      const overlap = findBestOverlap(rows);
+
+      const el = document.createElement("div");
+      el.className = "day";
+      if (d.getMonth() !== currentMonth.getMonth()) el.classList.add("outside");
+      if (ds === today) el.classList.add("today");
+      if (ds === selectedDate) el.classList.add("selected");
+
+      const uniquePeople = new Set(rows.map(x => x.name)).size;
+      el.innerHTML = `
+        <div class="day-num">${d.getDate()}</div>
+        ${uniquePeople ? `<div class="count">${uniquePeople} 人有空</div>` : ""}
+        ${overlap && overlap.count >= REQUIRED_PLAYERS
+          ? `<div class="formed">✅ ${overlap.count} 人可成局</div>`
+          : ""}
+      `;
+
+      el.addEventListener("click", async () => {
+        selectedDate = ds;
+        renderCalendar();
+        await loadSelectedDate();
+      });
+
+      calendarEl.appendChild(el);
+    }
+  }
+
+  async function loadSelectedDate() {
+    detailDate.textContent = prettyDate(selectedDate);
+
+    if (!db) {
+      entriesEl.innerHTML = `<div class="empty">完成 Supabase 設定後，這裡會顯示大家填的時間。</div>`;
+      bestSlotEl.innerHTML = "";
+      return;
+    }
+
+    const { data, error } = await db
+      .from("availability")
+      .select("*")
+      .eq("play_date", selectedDate)
+      .order("start_time", { ascending: true });
+
+    if (error) {
+      entriesEl.innerHTML = `<div class="empty">讀取失敗：${escapeHtml(error.message)}</div>`;
+      return;
+    }
+
+    const rows = data || [];
+    renderEntries(rows);
+    renderBestSlot(rows);
+  }
+
+  function renderEntries(rows) {
+    if (!rows.length) {
+      entriesEl.innerHTML = `<div class="empty">這天還沒有人填時間。</div>`;
+      return;
+    }
+
+    const myName = nicknameInput.value.trim();
+    entriesEl.innerHTML = rows.map(row => `
+      <div class="entry">
+        <div class="entry-top">
+          <div class="entry-name">${escapeHtml(row.name)}</div>
+          ${row.name === myName
+            ? `<button class="btn btn-danger" onclick="removeEntry('${row.id}')">刪除</button>`
+            : ""}
+        </div>
+        <div class="entry-time">${row.start_time.slice(0,5)} ～ ${row.end_time.slice(0,5)}</div>
+        ${row.note ? `<div class="entry-note">${escapeHtml(row.note)}</div>` : ""}
+      </div>
+    `).join("");
+  }
+
+  async function removeEntry(id) {
+    if (!db) return;
+    if (!confirm("確定刪除這筆時間？")) return;
+
+    const { error } = await db.from("availability").delete().eq("id", id);
+    if (error) return setStatus("刪除失敗：" + error.message);
+
+    setStatus("已刪除。");
+    await loadMonth();
+    await loadSelectedDate();
+  }
+  window.removeEntry = removeEntry;
+
+  function timeToMinutes(t) {
+    const [h,m] = t.slice(0,5).split(":").map(Number);
+    return h * 60 + m;
+  }
+
+  function minutesToTime(min) {
+    min = ((min % 1440) + 1440) % 1440;
+    const h = String(Math.floor(min / 60)).padStart(2, "0");
+    const m = String(min % 60).padStart(2, "0");
+    return `${h}:${m}`;
+  }
+
+  // 找出最多不同玩家重疊的連續時間區間。
+  // 跨午夜會把結束時間視為隔天，例如 21:00~01:00 => 1260~1500。
+  function findBestOverlap(rows) {
+    if (!rows.length) return null;
+
+    const segments = [];
+    rows.forEach(row => {
+      let s = timeToMinutes(row.start_time);
+      let e = timeToMinutes(row.end_time);
+      if (e <= s) e += 1440;
+      segments.push({ name: row.name, start: s, end: e });
+    });
+
+    const points = [...new Set(segments.flatMap(x => [x.start, x.end]))].sort((a,b) => a-b);
+    let best = null;
+
+    for (let i = 0; i < points.length - 1; i++) {
+      const a = points[i], b = points[i+1];
+      if (b <= a) continue;
+
+      const names = [...new Set(
+        segments.filter(x => x.start <= a && x.end >= b).map(x => x.name)
+      )];
+
+      if (!names.length) continue;
+
+      if (!best || names.length > best.count) {
+        best = { start: a, end: b, names, count: names.length };
+      } else if (
+        best &&
+        names.length === best.count &&
+        a === best.end &&
+        sameNames(names, best.names)
+      ) {
+        best.end = b;
+      }
+    }
+    return best;
+  }
+
+  function sameNames(a,b) {
+    return a.length === b.length && [...a].sort().join("|") === [...b].sort().join("|");
+  }
+
+  function renderBestSlot(rows) {
+    const best = findBestOverlap(rows);
+
+    if (!best) {
+      bestSlotEl.innerHTML = "";
+      return;
+    }
+
+    const formed = best.count >= REQUIRED_PLAYERS;
+    bestSlotEl.innerHTML = `
+      <div class="best-slot">
+        <div>${formed ? "🔥 最佳成局時段" : "目前最多人重疊"}</div>
+        <strong>${minutesToTime(best.start)} ～ ${minutesToTime(best.end)}</strong>
+        <div style="margin-top:6px">${best.names.map(escapeHtml).join("、")}</div>
+        <div class="small" style="margin-top:6px">
+          ${formed ? `${best.count} 人，可以開桌 🀄` : `${best.count} 人，目前還差 ${REQUIRED_PLAYERS - best.count} 人`}
+        </div>
+      </div>
+    `;
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, c => ({
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      '"':"&quot;",
+      "'":"&#039;"
+    }[c]));
+  }
+
+  loadMonth();
+  loadSelectedDate();
+</script>
+</body>
+</html>
